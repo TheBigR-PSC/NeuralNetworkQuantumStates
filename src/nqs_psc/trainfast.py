@@ -36,12 +36,11 @@ meta = {
     "n_dim": 2,
     "pbc": True,
     "hamiltonian": {"type": "Ising", "h": 3, "J": 1},
-    "model": "GCNN",
+    "model": "RBM",
     "sampler": {"type": "MetropolisLocal", "n_chains": 300, "n_samples": 1000},
     "optimizer": {"type": "SGD", "lr": 0.01},
     "n_iter": 300,
 }
 
-vstate_dict = vstate.to_dict()
-run_dir = save_run(log, meta, vstate_dict)
-print("test")
+
+run_dir = save_run(log, meta)
