@@ -2,4 +2,4 @@ import netket as nk
 
 
 def train():
-    print("Hello World")
+    print("Hello World netket")
