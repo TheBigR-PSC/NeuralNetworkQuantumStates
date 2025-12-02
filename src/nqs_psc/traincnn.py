@@ -19,15 +19,17 @@ lattice = nk.graph.Lattice(basis_vectors=[a1, a2], extent=(3, 3), pbc=True)
 
 
 # Création de l'état variationnel
-
-model = ans.CNN(lattice=lattice, kernel_size=(1,), channels=(5, 5))
+t = (16, 16)
+model = ans.CNN(
+    lattice=lattice, kernel_size=((2, 2), (2, 2)), channels=t, param_dtype=complex
+)
 sampler = nk.sampler.MetropolisLocal(hi, n_chains=300)
-vstate = nk.vqs.MCState(sampler, model, n_samples=1000)
+vstate = nk.vqs.MCState(sampler, model, n_samples=1000, seed=12345)
 
 # Optimisation
-
-op = nk.optimizer.Sgd(learning_rate=0.01)
-gs = nk.driver.VMC(ham, op, variational_state=vstate, diag_shift=1e-3)
+lr = 0.01
+op = nk.optimizer.Sgd(learning_rate=lr)
+gs = nk.driver.VMC(ham, op, variational_state=vstate)
 
 
 # création du logger
@@ -35,7 +37,8 @@ gs = nk.driver.VMC(ham, op, variational_state=vstate, diag_shift=1e-3)
 log = nk.logging.RuntimeLog()
 
 # One or more logger objects must be passed to the keyword argument `out`.
-gs.run(n_iter=100, out=log)
+n_iter = 300
+gs.run(n_iter, out=log)
 
 
 meta = {
@@ -45,9 +48,11 @@ meta = {
     "pbc": True,
     "hamiltonian": {"type": "Heisenberg"},
     "model": "CNN",
+    "kernel_size": 1,
+    "channels": t,
     "sampler": {"type": "MetropolisLocal", "n_chains": 300, "n_samples": 1000},
-    "optimizer": {"type": "SGD", "lr": 0.01},
-    "n_iter": 300,
+    "optimizer": {"type": "SGD", "lr": lr},
+    "n_iter": n_iter,
 }
 
 
