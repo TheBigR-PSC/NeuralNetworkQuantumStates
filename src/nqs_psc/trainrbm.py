@@ -1,6 +1,8 @@
 import netket as nk
 from nqs_psc.utils import save_run
 import numpy as np
+from functools import partial
+import copy
 
 # Taille du système
 L = 3
@@ -14,6 +16,21 @@ hi = nk.hilbert.Spin(s=1 / 2, N=g.n_nodes)
 ham = nk.operator.Heisenberg(hi, g)
 lattice = nk.graph.Lattice(basis_vectors=[a1, a2], extent=(3, 3), pbc=True)
 
+# Fonction qui permet de log d'autres valeurs d'expectation
+
+
+def expect_operator_callback(fs_state, operator_list):
+    def aux_fn(step, logdata, driver, fs_state, operator_list):
+        fs_state.variables = copy.deepcopy(driver.state.variables)
+        for i, op in enumerate(operator_list):
+            res = fs_state.expect(op)
+            logdata[f"op_{i}"] = res
+        return True
+
+    return partial(aux_fn, fs_state=fs_state, operator_list=operator_list)
+
+
+operator_list = [nk.operator.spin.sigmaz(hi, i) for i in range(g.n_nodes)]
 
 from scipy.sparse.linalg import eigsh
 
@@ -29,17 +46,26 @@ model = nk.models.RBM(alpha=alpha, param_dtype=complex)
 
 sampler = nk.sampler.MetropolisLocal(hi, n_chains=300)
 vstate = nk.vqs.MCState(sampler, model, n_samples=1000)
+fs_state = nk.vqs.FullSumState(hi, model)
+
 
 # Optimisation
 lr = 0.05
 optimizer = nk.optimizer.Sgd(learning_rate=lr)
-gs = nk.driver.VMC_SR(ham, optimizer, variational_state=vstate, diag_shift=1e-1)
+gs = nk.driver.VMC_SR(
+    ham,
+    optimizer,
+    variational_state=vstate,
+    diag_shift=1e-2,
+)
 
 # création du logger
 log = nk.logging.RuntimeLog()
 
 # One or more logger objects must be passed to the keyword argument `out`.
-gs.run(n_iter=300, out=log)
+gs.run(
+    n_iter=300, out=log, callback=(expect_operator_callback(fs_state, operator_list),)
+)
 
 # meta identique
 meta = {
@@ -54,6 +80,7 @@ meta = {
     "optimizer": {"type": "SGD", "lr": 0.01, "diag_shift": "?"},
     "n_iter": 300,
     "exact": e_gs,
+    "operators_list": "spins",
 }
 
 run_dir = save_run(log, meta)
